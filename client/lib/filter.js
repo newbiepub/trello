@@ -4,137 +4,110 @@
 // goal is to filter complete documents by using the local filters for each
 // fields.
 
-function showFilterSidebar() {
-  Sidebar.setView('filter');
-}
 
 // Use a "set" filter for a field that is a set of documents uniquely
 // identified. For instance `{ labels: ['labelA', 'labelC', 'labelD'] }`.
-class SetFilter {
-  constructor() {
-    this._dep = new Tracker.Dependency();
+var SetFilter = function(name) {
+    this._dep = new Tracker.Dependency;
     this._selectedElements = [];
-  }
+};
 
-  isSelected(val) {
-    this._dep.depend();
-    return this._selectedElements.indexOf(val) > -1;
-  }
-
-  add(val) {
-    if (this._indexOfVal(val) === -1) {
-      this._selectedElements.push(val);
-      this._dep.changed();
-      showFilterSidebar();
+_.extend(SetFilter.prototype, {
+    isSelected: function(val) {
+        this._dep.depend();
+        return this._selectedElements.indexOf(val) > -1;
+    },
+    // XXX We don't have a `add` and `remove` methods here, that would probably
+    // makes sense, and would be trivial to write but since there is currently
+    // no need in the code, I didn't write these.
+    toogle: function(val) {
+        var indexOfVal = this._selectedElements.indexOf(val);
+        if (indexOfVal === -1) {
+            this._selectedElements.push(val);
+        } else {
+            this._selectedElements.splice(indexOfVal, 1);
+        }
+        this._dep.changed();
+    },
+    reset: function() {
+        this._selectedElements = [];
+        this._dep.changed();
+    },
+    _isActive: function() {
+        this._dep.depend();
+        return this._selectedElements.length !== 0;
+    },
+    _getMongoSelector: function() {
+        this._dep.depend();
+        return { $in: this._selectedElements };
     }
-  }
-
-  remove(val) {
-    const indexOfVal = this._indexOfVal(val);
-    if (this._indexOfVal(val) !== -1) {
-      this._selectedElements.splice(indexOfVal, 1);
-      this._dep.changed();
-    }
-  }
-
-  toggle(val) {
-    if (this._indexOfVal(val) === -1) {
-      this.add(val);
-    } else {
-      this.remove(val);
-    }
-  }
-
-  reset() {
-    this._selectedElements = [];
-    this._dep.changed();
-  }
-
-  _indexOfVal(val) {
-    return this._selectedElements.indexOf(val);
-  }
-
-  _isActive() {
-    this._dep.depend();
-    return this._selectedElements.length !== 0;
-  }
-
-  _getMongoSelector() {
-    this._dep.depend();
-    return { $in: this._selectedElements };
-  }
-}
+});
 
 // The global Filter object.
 // XXX It would be possible to re-write this object more elegantly, and removing
 // the need to provide a list of `_fields`. We also should move methods into the
 // object prototype.
 Filter = {
-  // XXX I would like to rename this field into `labels` to be consistent with
-  // the rest of the schema, but we need to set some migrations architecture
-  // before changing the schema.
-  labelIds: new SetFilter(),
-  members: new SetFilter(),
+    // XXX I would like to rename this field into `labels` to be consistent with
+    // the rest of the schema, but we need to set some migrations architecture
+    // before changing the schema.
+    labelIds: new SetFilter(),
+    members: new SetFilter(),
 
-  _fields: ['labelIds', 'members'],
+    _fields: ['labelIds', 'members'],
 
-  // We don't filter cards that have been added after the last filter change. To
-  // implement this we keep the id of these cards in this `_exceptions` fields
-  // and use a `$or` condition in the mongo selector we return.
-  _exceptions: [],
-  _exceptionsDep: new Tracker.Dependency(),
+    // We don't filter cards that have been added after the last filter change.
+    // To implement this we keep the id of these cards in this `_exceptions`
+    // fields and use a `$or` condition in the mongo selector we return.
+    _exceptions: [],
+    _exceptionsDep: new Tracker.Dependency,
 
-  isActive() {
-    return _.any(this._fields, (fieldName) => {
-      return this[fieldName]._isActive();
-    });
-  },
+    isActive: function() {
+        var self = this;
+        return _.any(self._fields, function(fieldName) {
+            return self[fieldName]._isActive();
+        });
+    },
 
-  _getMongoSelector() {
-    if (!this.isActive())
-      return {};
+    getMongoSelector: function() {
+        var self = this;
 
-    const filterSelector = {};
-    this._fields.forEach((fieldName) => {
-      const filter = this[fieldName];
-      if (filter._isActive())
-        filterSelector[fieldName] = filter._getMongoSelector();
-    });
+        if (! self.isActive())
+            return {};
 
-    const exceptionsSelector = {_id: {$in: this._exceptions}};
-    this._exceptionsDep.depend();
+        var filterSelector = {};
+        _.forEach(self._fields , function(fieldName) {
+            var filter = self[fieldName];
+            if (filter._isActive())
+                filterSelector[fieldName] = filter._getMongoSelector();
+        });
 
-    return {$or: [filterSelector, exceptionsSelector]};
-  },
+        var exceptionsSelector = {_id: {$in: this._exceptions}};
+        this._exceptionsDep.depend();
 
-  mongoSelector(additionalSelector) {
-    const filterSelector = this._getMongoSelector();
-    if (_.isUndefined(additionalSelector))
-      return filterSelector;
-    else
-      return {$and: [filterSelector, additionalSelector]};
-  },
+        return {$or: [filterSelector, exceptionsSelector]};
+    },
 
-  reset() {
-    this._fields.forEach((fieldName) => {
-      const filter = this[fieldName];
-      filter.reset();
-    });
-    this.resetExceptions();
-  },
+    reset: function() {
+        var self = this;
+        _.forEach(self._fields , function(fieldName) {
+            var filter = self[fieldName];
+            filter.reset();
+        });
+        self.resetExceptions();
+    },
 
-  addException(_id) {
-    if (this.isActive()) {
-      this._exceptions.push(_id);
-      this._exceptionsDep.changed();
-      Tracker.flush();
+    addException: function(_id) {
+        if (this.isActive()) {
+            this._exceptions.push(_id);
+            this._exceptionsDep.changed();
+        }
+    },
+
+    resetExceptions: function() {
+        this._exceptions = [];
+        this._exceptionsDep.changed();
     }
-  },
-
-  resetExceptions() {
-    this._exceptions = [];
-    this._exceptionsDep.changed();
-  },
 };
 
 Blaze.registerHelper('Filter', Filter);
