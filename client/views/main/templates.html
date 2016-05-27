@@ -20,8 +20,8 @@
     {{ > yield "modal" }}
     <div id="surface">
         <div id="header">
-            <a href="{{pathFor 'Home'}}" title="{{_ 'header-logo-title'}}" class="header-logo">
-                <span class="header-logo-default"></span>
+            <a href="{{pathFor 'Boards'}}" title="{{_ 'header-logo-title'}}" class="header-logo">
+                <i>TODOS</i>
            </a>
             <div class="header-user">
                 <a class="header-btn header-signup" href="{{ pathFor route='Signup' }}">{{_ "sign-up"}}</a>
@@ -46,8 +46,8 @@
                     </a>
                 </div>
                 {{ > search }}
-                <a href="{{pathFor 'Home'}}" title="{{_ 'header-logo-title'}}" class="header-logo">
-                    <span class="header-logo-default"></span>
+                <a href="{{pathFor 'Boards'}}" title="{{_ 'header-logo-title'}}" class="header-logo">
+                    <i>TODOS</i>
                 </a>
                 {{ > memberHeader }}
             </div>
