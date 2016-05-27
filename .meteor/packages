@@ -19,13 +19,13 @@ matb33:collection-hooks
 matteodem:easy-search
 mquandalle:moment
 mquandalle:jquery-textcomplete
-mquandalle:stylus
 ongoworks:speakingurl
+mquandalle:stylus
 reywood:publish-composite
 seriousm:emoji-continued
 tap:i18n
-bengott:avatar
 aldeed:collection2
 idmontie:migrations
 cfs:standard-packages
 cfs:gridfs
+utilities:avatar
